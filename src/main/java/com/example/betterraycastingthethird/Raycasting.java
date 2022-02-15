@@ -5,6 +5,7 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -18,13 +19,21 @@ public class Raycasting extends Application {
     @Override
     public void start(Stage stage) throws IOException {
 
-        create();
-        Raycast();
-
-        //put things in the group here
         Scene mainScene = new Scene(mainGroup,900,500,CustomColors.darkGrey);
         stage.setScene(mainScene); //cole says this is "so true"
-        stage.show();
+
+        create();
+        while(true) {
+
+            Raycast();
+            getFPS();
+            System.gc();
+
+            //put things in the group here
+
+            stage.show();
+        }
+
     }
 
     //run this once at the very start of each room
@@ -33,15 +42,13 @@ public class Raycasting extends Application {
         testRoom = new Room(-1);
     }
 
-    //game loop method
+    //do all the gross raycasting
+        //get to know this better
     private void Raycast() {
 
         //stuff
-        for (int i = 0; i < 900; i ++) {
+        for (int i = 0; i < 900; i ++) { //for every vertical line in the screen (screen width)
             double cameraX = 2 * i / 900.0 - 1; //x coord in camera space
-
-            int mapX = (int)camera.posX;
-            int mapY = (int)camera.posY;
 
             double rayDirX = camera.dirX + camera.planeX * cameraX;
             double rayDirY = camera.dirY + camera.planeY * cameraX;
@@ -64,22 +71,22 @@ public class Raycasting extends Application {
             if (rayDirX < 0)
             {
                 stepX = -1;
-                sideDistX = (camera.posX - mapX) * deltaDistX;
+                sideDistX = (camera.posX - camera.mapX) * deltaDistX;
             }
             else
             {
                 stepX = 1;
-                sideDistX = (mapX + 1.0 - camera.posX) * deltaDistX;
+                sideDistX = (camera.mapX + 1.0 - camera.posX) * deltaDistX;
             }
             if (rayDirY < 0)
             {
                 stepY = -1;
-                sideDistY = (camera.posY - mapY) * deltaDistY;
+                sideDistY = (camera.posY - camera.mapY) * deltaDistY;
             }
             else
             {
                 stepY = 1;
-                sideDistY = (mapY + 1.0 - camera.posY) * deltaDistY;
+                sideDistY = (camera.mapY + 1.0 - camera.posY) * deltaDistY;
             }
 
             //perform DDA
@@ -89,17 +96,17 @@ public class Raycasting extends Application {
                 if (sideDistX < sideDistY)
                 {
                     sideDistX += deltaDistX;
-                    mapX += stepX;
+                    camera.mapX += stepX;
                     side = 0;
                 }
                 else
                 {
                     sideDistY += deltaDistY;
-                    mapY += stepY;
+                    camera.mapY += stepY;
                     side = 1;
                 }
                 //Check if ray has hit a wall
-                if (testRoom.map[mapX][mapY] > 0) hit = 1;
+                if (testRoom.map[camera.mapX][camera.mapY] > 0) hit = 1;
             }
 
             //Calculate distance projected on camera direction
@@ -118,6 +125,26 @@ public class Raycasting extends Application {
             mainGroup.getChildren().add(drawRay(i, drawStart, drawEnd, side));
 
         }
+    }
+
+    private Text getFPS() {
+
+        //text object for fps
+        Text fps = new Text();
+
+        //timing for input and FPS counter
+        camera.oldTime = camera.time;
+        camera.time = System.currentTimeMillis();
+        double frameTime = (camera.time - camera.oldTime) / 1000.0; //frameTime is the time this frame has taken, in seconds
+        fps.setText(1.0 / frameTime + ""); //FPS counter - make this a text obj.
+        fps.setX(20);
+        fps.setY(20);
+
+        //speed modifiers
+        double moveSpeed = frameTime * 5.0; //the constant value is in squares/second
+        double rotSpeed = frameTime * 3.0; //the constant value is in radians/second
+
+        return fps;
     }
 
     public Line drawRay(int x, int drawStart, int drawEnd, int side) {
