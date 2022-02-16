@@ -9,30 +9,35 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class Raycasting extends Application {
 
     private Camera camera;
     private Room testRoom;
     public Group mainGroup = new Group();
+    public Timer repeat = new Timer();
+
 
     @Override
-    public void start(Stage stage) throws IOException {
+    public void start(Stage stage) throws IOException{
 
         Scene mainScene = new Scene(mainGroup,900,500,CustomColors.darkGrey);
         stage.setScene(mainScene); //cole says this is "so true"
+        TimerTask system = new TimerTask() {
+            @Override
+            public void run() {
+                Raycast();
+                getFPS();
+                System.gc();
+                stage.show();
 
+            }
+        };
         create();
-        while(true) {
 
-            Raycast();
-            getFPS();
-            System.gc();
-
-            //put things in the group here
-
-            stage.show();
-        }
+        repeat.scheduleAtFixedRate(system, 0, 1000);
 
     }
 
@@ -53,6 +58,9 @@ public class Raycasting extends Application {
             double rayDirX = camera.dirX + camera.planeX * cameraX;
             double rayDirY = camera.dirY + camera.planeY * cameraX;
 
+            int mapY = (int)camera.posY; //see above
+            int mapX = (int)camera.posX; //camera's map location (consists of 1.0 -> 1.999...)
+
             double sideDistX;
             double sideDistY;
 
@@ -71,22 +79,22 @@ public class Raycasting extends Application {
             if (rayDirX < 0)
             {
                 stepX = -1;
-                sideDistX = (camera.posX - camera.mapX) * deltaDistX;
+                sideDistX = (camera.posX - mapX) * deltaDistX;
             }
             else
             {
                 stepX = 1;
-                sideDistX = (camera.mapX + 1.0 - camera.posX) * deltaDistX;
+                sideDistX = (mapX + 1.0 - camera.posX) * deltaDistX;
             }
             if (rayDirY < 0)
             {
                 stepY = -1;
-                sideDistY = (camera.posY - camera.mapY) * deltaDistY;
+                sideDistY = (camera.posY - mapY) * deltaDistY;
             }
             else
             {
                 stepY = 1;
-                sideDistY = (camera.mapY + 1.0 - camera.posY) * deltaDistY;
+                sideDistY = (mapY + 1.0 - camera.posY) * deltaDistY;
             }
 
             //perform DDA
@@ -96,17 +104,17 @@ public class Raycasting extends Application {
                 if (sideDistX < sideDistY)
                 {
                     sideDistX += deltaDistX;
-                    camera.mapX += stepX;
+                    mapX += stepX;
                     side = 0;
                 }
                 else
                 {
                     sideDistY += deltaDistY;
-                    camera.mapY += stepY;
+                    mapY += stepY;
                     side = 1;
                 }
                 //Check if ray has hit a wall
-                if (testRoom.map[camera.mapX][camera.mapY] > 0) hit = 1;
+                if (testRoom.map[mapX][mapY] > 0) hit = 1;
             }
 
             //Calculate distance projected on camera direction
