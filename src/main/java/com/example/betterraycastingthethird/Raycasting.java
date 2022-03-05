@@ -1,79 +1,135 @@
 package com.example.betterraycastingthethird;
 
+import javafx.animation.Animation;
+import javafx.animation.AnimationTimer;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.IOException;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.security.Key;
+import java.util.EventListener;
 
 public class Raycasting extends Application {
 
     private Camera camera;
     private Room testRoom;
     public Group mainGroup = new Group();
-    public Timer repeat = new Timer();
+    public Line[] screen;
+    private Stage stageM;
+    private Scene mainScene;
+    private EventHandler keyboard;
+    final KeyEvent[] keyPressed = {null};
 
 
     @Override
-    public void start(Stage stage) throws IOException{
+    public void start(Stage stage) throws IOException, InterruptedException {
 
-        Scene mainScene = new Scene(mainGroup,900,500,CustomColors.darkGrey);
-        stage.setScene(mainScene); //cole says this is "so true"
-        TimerTask system = new TimerTask() {
-            @Override
-            public void run() {
-                Raycast();
-                getFPS();
-                System.gc();
-                stage.show();
+        stageM = stage;
 
-            }
-        };
+        mainScene = new Scene(mainGroup,900,500,CustomColors.darkGrey);
+        stageM.setScene(mainScene); //cole says this is "so true"
         create();
 
-        repeat.scheduleAtFixedRate(system, 0, 1000);
+
 
     }
+
+    KeyFrame animate = new KeyFrame(
+
+            //Common FPS Values:
+            //120 FPS: 0.0083 sec
+            //60 FPS: 0.0167 sec
+            //35 FPS: 0.029 sec
+            Duration.seconds(0.029),
+            actionEvent -> {
+                Raycast();
+                stageM.show();
+            }
+            );
+
+    Timeline loop = new Timeline(animate);
+
+
+
+    EventHandler<KeyEvent> eventHandler = new EventHandler<KeyEvent>() {
+        @Override
+        public void handle(KeyEvent e) {
+            keyPressed[0] = e;
+            System.out.println(keyPressed[0]);
+        }
+    };
+
+    EventListener eventListener = new EventListener() {
+
+    };
+
+
 
     //run this once at the very start of each room
     private void create() {
         camera = new Camera(22,12,-1,0,0,0.66);
         testRoom = new Room(-1);
+        screen = new Line[900];
+        //mainScene.setOnKeyPressed(eventHandler);
+        loop.setCycleCount(Animation.INDEFINITE);
+        loop.play();
+        for (int i = 0; i < screen.length; i ++) {
+            screen[i] = new Line();
+            mainGroup.getChildren().add(screen[i]);
+        }
+
     }
 
     //do all the gross raycasting
         //get to know this better
-    private void Raycast() {
+    public void Raycast() {
+
+        //making the variables outside the loop that runs way too many times.
+        double cameraX, rayDirX, rayDirY; //sets the X of the camera plane as well as the direction to capture in screen
+        int mapX, mapY, stepX, stepY; //map tile and step length for x and y
+        double sideDistX, sideDistY, perpWallDist; //distance to the side of the current map space
+        double deltaDistX, deltaDistY;
+        int hit; //this helps determine whether to color this side light or dark
+        int side, lineHeight = 0;
+        double frameTime = Camera.getFrameTime();
+        double oldPlaneX;
+        double oldDirX;
+
+        double moveSpeed = frameTime * 5.0; //the constant value is in squares/second
+        double rotSpeed = frameTime * 3.0; //the constant value is in radians/second
 
         //stuff
         for (int i = 0; i < 900; i ++) { //for every vertical line in the screen (screen width)
-            double cameraX = 2 * i / 900.0 - 1; //x coord in camera space
+            cameraX = 2 * i / 900.0 - 1; //x coord in camera space
 
-            double rayDirX = camera.dirX + camera.planeX * cameraX;
-            double rayDirY = camera.dirY + camera.planeY * cameraX;
+            rayDirX = camera.dirX + camera.planeX * cameraX;
+            rayDirY = camera.dirY + camera.planeY * cameraX;
 
-            int mapY = (int)camera.posY; //see above
-            int mapX = (int)camera.posX; //camera's map location (consists of 1.0 -> 1.999...)
+            mapY = (int)camera.posY; //see above
+            mapX = (int)camera.posX; //camera's map location (consists of 1.0 -> 1.999...)
 
-            double sideDistX;
-            double sideDistY;
 
-            double perpWallDist;
+            deltaDistX = (rayDirX == 0) ? 1e30 : Math.abs(1 / rayDirX);
+            deltaDistY = (rayDirY == 0) ? 1e30 : Math.abs(1 / rayDirY);
 
-            double deltaDistX = (rayDirX == 0) ? 1e30 : Math.abs(1 / rayDirX);
-            double deltaDistY = (rayDirY == 0) ? 1e30 : Math.abs(1 / rayDirY);
 
-            int stepX;
-            int stepY;
+            hit = 0; //was there a wall hit?
+            side = 0; //was it NS or EW side of wall?
 
-            int hit = 0; //was there a wall hit?
-            int side = 0; //was it NS or EW side of wall?
+
 
             //calculate step and initial sideDist
             if (rayDirX < 0)
@@ -122,7 +178,7 @@ public class Raycasting extends Application {
             else          perpWallDist = (sideDistY - deltaDistY);
 
             //Calculate height of line to draw on screen
-            int lineHeight = (int)(400 / perpWallDist);
+            lineHeight = (int)(400 / perpWallDist);
 
             //calculate lowest and highest pixel to fill in current stripe - screen height is 425
             int drawStart = -lineHeight / 2 + 425 / 2;
@@ -130,48 +186,86 @@ public class Raycasting extends Application {
             int drawEnd = lineHeight / 2 + 425 / 2;
             if(drawEnd >= 425)drawEnd = 425 - 1;
 
-            mainGroup.getChildren().add(drawRay(i, drawStart, drawEnd, side));
+
+            drawRay(i, drawStart, drawEnd, side);
+
+
 
         }
+        //player controller
+
+
+        /*
+
+        PUT ME ON ANOTHER KEYFRAME/ANIMATION PLS PLS PLS TY
+
+        //move forward if no wall in front of you
+        if (keyPressed[0].getCode() == KeyCode.KP_UP)
+        {
+            if(testRoom.map[(int)(camera.posX + camera.dirX * moveSpeed)][(int)(camera.posY)] == 0) camera.posX += camera.dirX * moveSpeed;
+            if(testRoom.map[(int)(camera.posX)][(int)(camera.posY + camera.dirY * moveSpeed)] == 0) camera.posY += camera.dirY * moveSpeed;
+        }
+        //move backwards if no wall behind you
+        if (keyPressed[0].getCode() == KeyCode.KP_DOWN)
+        {
+            if(testRoom.map[(int)(camera.posX - camera.dirX * moveSpeed)][(int)(camera.posY)] == 0) camera.posX -= camera.dirX * moveSpeed;
+            if(testRoom.map[(int)(camera.posX)][(int)(camera.posY - camera.dirY * moveSpeed)] == 0) camera.posY -= camera.dirY * moveSpeed;
+        }
+        //rotate to the right
+        if (keyPressed[0].getCode() == KeyCode.KP_RIGHT)
+        {
+            //both camera direction and camera plane must be rotated
+            oldDirX = camera.dirX;
+            camera.dirX = camera.dirX * Math.cos(-rotSpeed) - camera.dirY * Math.sin(-rotSpeed);
+            camera.dirY = oldDirX * Math.sin(-rotSpeed) + camera.dirY * Math.cos(-rotSpeed);
+            oldPlaneX = camera.planeX;
+            camera.planeX = camera.planeX * Math.cos(-rotSpeed) - camera.planeY * Math.sin(-rotSpeed);
+            camera.planeY = oldPlaneX * Math.sin(-rotSpeed) + camera.planeY * Math.cos(-rotSpeed);
+        }
+        //rotate to the left
+        if (keyPressed[0].getCode() == KeyCode.KP_LEFT)
+        {
+            //both camera direction and camera plane must be rotated
+            oldDirX = camera.dirX;
+            camera.dirX = camera.dirX * Math.cos(rotSpeed) - camera.dirY * Math.sin(rotSpeed);
+            camera.dirY = oldDirX * Math.sin(rotSpeed) + camera.dirY * Math.cos(rotSpeed);
+            oldPlaneX = camera.planeX;
+            camera.planeX = camera.planeX * Math.cos(rotSpeed) - camera.planeY * Math.sin(rotSpeed);
+            camera.planeY = oldPlaneX * Math.sin(rotSpeed) + camera.planeY * Math.cos(rotSpeed);
+        }
+
+         */
     }
 
-    private Text getFPS() {
-
-        //text object for fps
-        Text fps = new Text();
-
-        //timing for input and FPS counter
-        camera.oldTime = camera.time;
-        camera.time = System.currentTimeMillis();
-        double frameTime = (camera.time - camera.oldTime) / 1000.0; //frameTime is the time this frame has taken, in seconds
-        fps.setText(1.0 / frameTime + ""); //FPS counter - make this a text obj.
-        fps.setX(20);
-        fps.setY(20);
-
-        //speed modifiers
-        double moveSpeed = frameTime * 5.0; //the constant value is in squares/second
-        double rotSpeed = frameTime * 3.0; //the constant value is in radians/second
-
-        return fps;
-    }
-
-    public Line drawRay(int x, int drawStart, int drawEnd, int side) {
+    public void drawRay(int x, int drawStart, int drawEnd, int side) {
 
         Color lightSide = CustomColors.lightGrey; //light and dark sides for the ray
         Color darkSide = CustomColors.midGrey;
 
-        Line viewLine = new Line(x,drawStart,x,drawEnd);
-        if (side == 1) {
-            viewLine.setStroke(darkSide);
-        } else {
-            viewLine.setStroke(lightSide);
-        }
+        //used for debugging
+        Color rLightSide = Color.rgb((int)(Math.random()*255),(int)(Math.random()*255),(int)(Math.random()*255));
 
-        return viewLine;
+        screen[x].setStartX(x); screen[x].setStartY(drawStart);
+        screen[x].setEndX(x); screen[x].setEndY(drawEnd);
+
+        if (side == 1) {
+            screen[x].setStroke(darkSide);
+        } else {
+            screen[x].setStroke(rLightSide);
+        }
 
     }
 
     public static void main(String[] args) {
         launch();
     }
+
+    Task task = new Task<Void>() {
+        @Override
+        public Void call() {
+            Raycast();
+            return null;
+
+        }
+    };
 }
