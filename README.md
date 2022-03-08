@@ -1,4 +1,8 @@
 # RaycastingEngine
-# Atm this is ripped straight out of a tutorial found here: https://lodev.org/cgtutor/raycasting.html
+I am never doing raycasting again.
 
-# we are going to make this better and customize it so it can be "ours".
+Influenced heavily by:
+https://lodev.org/cgtutor/raycasting.html
+
+Modifications and unbearable pain hours donated by yours truly.
+On to 3D!
