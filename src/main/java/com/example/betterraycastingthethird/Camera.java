@@ -15,16 +15,4 @@ public class Camera {
 
     }
 
-    public static double getFrameTime() {
-        double frameTime;
-
-        oldTime = System.currentTimeMillis();
-        time = System.currentTimeMillis();
-
-        frameTime = (double)(time-oldTime)/1000.0;
-
-
-        return frameTime;
-    }
-
 }

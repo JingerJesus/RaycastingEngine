@@ -31,7 +31,7 @@ public class Raycasting extends Application {
     private Stage stageM;
     private Scene mainScene;
     private EventHandler keyboard;
-    final KeyEvent[] keyPressed = {null};
+    private String[] keyDown = {"NONE", "NONE"}; //index 0 is major axis, index 1 is rotation.
 
 
     @Override
@@ -53,6 +53,7 @@ public class Raycasting extends Application {
             //120 FPS: 0.0083 sec
             //60 FPS: 0.0167 sec
             //35 FPS: 0.029 sec
+            //1 FPS: 1.0 sec
             Duration.seconds(0.029),
             actionEvent -> {
                 Raycast();
@@ -64,18 +65,35 @@ public class Raycasting extends Application {
 
 
 
-    EventHandler<KeyEvent> eventHandler = new EventHandler<KeyEvent>() {
-        @Override
-        public void handle(KeyEvent e) {
-            keyPressed[0] = e;
-            System.out.println(keyPressed[0]);
+    private void handleEvent(KeyEvent keyEvent) {
+        if (keyEvent.getEventType() == KeyEvent.KEY_PRESSED) {
+            switch (keyEvent.getCode()) {
+                case W:
+                    keyDown[0] = "UP";
+                    break;
+                case S:
+                    keyDown[0] = "DOWN";
+                    break;
+                case A:
+                    keyDown[1] = "LEFT";
+                    break;
+                case D:
+                    keyDown[1] = "RIGHT";
+                    break;
+                default:
+                    keyDown[0] = "NONE";
+                    keyDown[1] = "NONE";
+                    break;
+            }
+
+        } else if (keyEvent.getEventType() == KeyEvent.KEY_RELEASED) {
+            keyDown[0] = "NONE";
+            keyDown[1] = "NONE";
         }
-    };
+        System.out.println(keyEvent.toString());
+        System.out.println(keyDown);
 
-    EventListener eventListener = new EventListener() {
-
-    };
-
+    }
 
 
     //run this once at the very start of each room
@@ -83,7 +101,16 @@ public class Raycasting extends Application {
         camera = new Camera(22,12,-1,0,0,0.66);
         testRoom = new Room(-1);
         screen = new Line[900];
-        //mainScene.setOnKeyPressed(eventHandler);
+        
+        mainScene.setOnKeyPressed(new EventHandler<KeyEvent>()
+        {
+            public void handle(final KeyEvent keyEvent)
+            {
+                handleEvent(keyEvent);
+            }
+
+        });
+
         loop.setCycleCount(Animation.INDEFINITE);
         loop.play();
         for (int i = 0; i < screen.length; i ++) {
@@ -104,7 +131,7 @@ public class Raycasting extends Application {
         double deltaDistX, deltaDistY;
         int hit; //this helps determine whether to color this side light or dark
         int side, lineHeight = 0;
-        double frameTime = Camera.getFrameTime();
+        double frameTime = 0.029;
         double oldPlaneX;
         double oldDirX;
 
@@ -192,27 +219,38 @@ public class Raycasting extends Application {
 
 
         }
-        //player controller
+        //player listener
 
 
-        /*
+        mainScene.setOnKeyPressed(new EventHandler<KeyEvent>()
+        {
+            public void handle(final KeyEvent keyEvent)
+            {
+                handleEvent(keyEvent);
+            }
 
-        PUT ME ON ANOTHER KEYFRAME/ANIMATION PLS PLS PLS TY
+        });
+        mainScene.setOnKeyReleased(new EventHandler<KeyEvent>() {
+            @Override
+            public void handle(KeyEvent keyEvent) {
+                handleEvent(keyEvent);
+            }
+        });
 
         //move forward if no wall in front of you
-        if (keyPressed[0].getCode() == KeyCode.KP_UP)
+        if (keyDown[0].equals("UP"))
         {
             if(testRoom.map[(int)(camera.posX + camera.dirX * moveSpeed)][(int)(camera.posY)] == 0) camera.posX += camera.dirX * moveSpeed;
             if(testRoom.map[(int)(camera.posX)][(int)(camera.posY + camera.dirY * moveSpeed)] == 0) camera.posY += camera.dirY * moveSpeed;
         }
         //move backwards if no wall behind you
-        if (keyPressed[0].getCode() == KeyCode.KP_DOWN)
+        if (keyDown[0].equals("DOWN"))
         {
             if(testRoom.map[(int)(camera.posX - camera.dirX * moveSpeed)][(int)(camera.posY)] == 0) camera.posX -= camera.dirX * moveSpeed;
             if(testRoom.map[(int)(camera.posX)][(int)(camera.posY - camera.dirY * moveSpeed)] == 0) camera.posY -= camera.dirY * moveSpeed;
         }
         //rotate to the right
-        if (keyPressed[0].getCode() == KeyCode.KP_RIGHT)
+        if (keyDown[1].equals("RIGHT"))
         {
             //both camera direction and camera plane must be rotated
             oldDirX = camera.dirX;
@@ -223,7 +261,7 @@ public class Raycasting extends Application {
             camera.planeY = oldPlaneX * Math.sin(-rotSpeed) + camera.planeY * Math.cos(-rotSpeed);
         }
         //rotate to the left
-        if (keyPressed[0].getCode() == KeyCode.KP_LEFT)
+        if (keyDown[1].equals("LEFT"))
         {
             //both camera direction and camera plane must be rotated
             oldDirX = camera.dirX;
@@ -234,7 +272,7 @@ public class Raycasting extends Application {
             camera.planeY = oldPlaneX * Math.sin(rotSpeed) + camera.planeY * Math.cos(rotSpeed);
         }
 
-         */
+
     }
 
     public void drawRay(int x, int drawStart, int drawEnd, int side) {
@@ -251,7 +289,7 @@ public class Raycasting extends Application {
         if (side == 1) {
             screen[x].setStroke(darkSide);
         } else {
-            screen[x].setStroke(rLightSide);
+            screen[x].setStroke(lightSide);
         }
 
     }
@@ -260,12 +298,4 @@ public class Raycasting extends Application {
         launch();
     }
 
-    Task task = new Task<Void>() {
-        @Override
-        public Void call() {
-            Raycast();
-            return null;
-
-        }
-    };
 }
